@@ -2,20 +2,33 @@ const readline = require('node:readline');
 const { stdin: input, stdout: output } = require('node:process');
 const { readStr } = require('./reader');
 const { prStr } = require('./printer');
-const { MalList, MalNum, MalVector, MalHashMap } = require('./types');
+const { MalList, MalNum, MalVector, MalHashMap, MalSymbol } = require('./types');
+const { Env } = require('./env');
 
 const rl = readline.createInterface({ input, output });
 const READ = (value) => readStr(value);
 const PRINT = (values) => prStr(values);
 
-const repelENV = {
-  '+': (a, b) => a + b,
-  '-': (a, b) => a - b,
-  '*': (a, b) => a * b,
-  '/': (a, b) => a / b,
-};
+const repelENV = new Env();
+repelENV.set('+', (a, b) => a + b);
+repelENV.set('-', (a, b) => a - b);
+repelENV.set('*', (a, b) => a * b);
+repelENV.set('/', (a, b) => a / b);
 
 const evalAst = (ast, repelENV) => {
+  if (ast instanceof MalSymbol) {
+    const value = repelENV.get(ast.value);
+    if (!value) {
+      throw new Error(`${ast.value} => no value is found`);
+    }
+
+    return value;
+  }
+
+  if (ast instanceof MalList) {
+    return new MalList(ast.value.map((a) => EVAL(a, repelENV)));
+  }
+
   if (ast instanceof MalVector) {
     return new MalVector(ast.value.map((a) => EVAL(a, repelENV)));
   }
@@ -29,7 +42,7 @@ const evalAst = (ast, repelENV) => {
 
 const EVAL = (ast, repelENV) => {
   if (!(ast instanceof MalList)) {
-    return evalAst(ast, env);
+    return evalAst(ast, repelENV);
   }
 
   if (ast.value.length === 0) {
@@ -37,11 +50,18 @@ const EVAL = (ast, repelENV) => {
   }
 
   if (ast instanceof MalList) {
-    const [fn, ...params] = ast.value;
-    const args = params.map((a) => evalAst(a, repelENV).value);
-    const value = repelENV[fn.value].apply(null, args);
+    if (ast.value[0].value === 'def!') {
+      const [_, ...params] = ast.value;
+      const key = params[0];
+      const value = EVAL(params[1], repelENV);
+      repelENV.set(key.value, value);
 
-    return new MalNum(value);
+      return value;
+    }
+
+    const [fn, ...params] = evalAst(ast, repelENV).value;
+    const args = params.map((a) => a.value);
+    return new MalNum(fn.apply(null, args));
   }
 
   return evalAst(ast, repelENV);

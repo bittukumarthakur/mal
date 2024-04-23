@@ -41,7 +41,6 @@ const evalAst = (ast, repelENV) => {
 };
 
 const EVAL = (ast, repelENV) => {
-  console.log('>>>', ast);
   if (!(ast instanceof MalList)) {
     return evalAst(ast, repelENV);
   }
