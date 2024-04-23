@@ -1,4 +1,13 @@
-const { MalType, MalNum, MalList, MalSymbol, MalVector, MalHashMap } = require('./types');
+const {
+  MalType,
+  MalNum,
+  MalList,
+  MalSymbol,
+  MalVector,
+  MalHashMap,
+  MalString,
+  MalKeyword,
+} = require('./types');
 
 class Reader {
   #tokens;
@@ -49,17 +58,27 @@ const readHashMap = (reader) => {
   return readSeq(reader, '}');
 };
 
+const match = (regex, value) => regex.test(value);
+
 const readAtom = (reader) => {
   const value = reader.next();
   const isUndefined = !value;
-  const isNumber = /\d/.test(value);
+  const numberRegex = /^\+?\-?\d+$/;
+  const stringRegex = /^".*"$/;
+  const keywordRegex = /^:/;
 
   switch (true) {
     case isUndefined:
       throw new Error('unbalanced');
 
-    case isNumber:
+    case match(numberRegex, value):
       return new MalNum(parseInt(value));
+
+    case match(stringRegex, value):
+      return new MalString(value);
+
+    case match(keywordRegex, value):
+      return new MalKeyword(value);
 
     default:
       return new MalSymbol(value);

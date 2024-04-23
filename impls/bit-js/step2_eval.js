@@ -2,7 +2,7 @@ const readline = require('node:readline');
 const { stdin: input, stdout: output } = require('node:process');
 const { readStr } = require('./reader');
 const { prStr } = require('./printer');
-const { MalList, MalNum, MalVector, MalHashMap } = require('./types');
+const { MalList, MalNum, MalVector, MalHashMap, MalSymbol } = require('./types');
 
 const rl = readline.createInterface({ input, output });
 const READ = (value) => readStr(value);
@@ -16,30 +16,46 @@ const repelENV = {
 };
 
 const evalAst = (ast, repelENV) => {
-  if (ast.value.length === 0) {
-    return ast;
+  if (ast instanceof MalSymbol) {
+    const value = repelENV[ast.value];
+    if (!value) {
+      throw new Error(`${ast.value} => no value is found`);
+    }
+
+    return value;
   }
 
   if (ast instanceof MalList) {
-    const [fn, ...params] = ast.value;
-    const args = params.map((a) => evalAst(a, repelENV).value);
-    const value = repelENV[fn.value].apply(null, args);
-
-    return new MalNum(value);
+    return new MalList(ast.value.map((a) => EVAL(a, repelENV)));
   }
 
   if (ast instanceof MalVector) {
-    return new MalVector(ast.value.map((a) => evalAst(a, repelENV)));
+    return new MalVector(ast.value.map((a) => EVAL(a, repelENV)));
   }
 
   if (ast instanceof MalHashMap) {
-    return new MalHashMap(ast.value.map((a) => evalAst(a, repelENV)));
+    return new MalHashMap(ast.value.map((a) => EVAL(a, repelENV)));
   }
 
   return ast;
 };
 
 const EVAL = (ast, repelENV) => {
+  console.log('>>>', ast);
+  if (!(ast instanceof MalList)) {
+    return evalAst(ast, repelENV);
+  }
+
+  if (ast.value.length === 0) {
+    return ast;
+  }
+
+  if (ast instanceof MalList) {
+    const [fn, ...params] = evalAst(ast, repelENV).value;
+    const args = params.map((a) => a.value);
+    return new MalNum(fn.apply(null, args));
+  }
+
   return evalAst(ast, repelENV);
 };
 

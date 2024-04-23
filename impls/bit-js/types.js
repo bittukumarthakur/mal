@@ -45,10 +45,31 @@ class MalHashMap extends MalType {
   }
 }
 
+class MalString extends MalType {
+  constructor(value) {
+    super(value);
+  }
+}
+
 class MalSymbol extends MalType {
   constructor(value) {
     super(value);
   }
 }
 
-module.exports = { MalType, MalNum, MalList, MalSymbol, MalVector, MalHashMap };
+class MalKeyword extends MalType {
+  constructor(value) {
+    super(value);
+  }
+}
+
+module.exports = {
+  MalType,
+  MalNum,
+  MalList,
+  MalSymbol,
+  MalVector,
+  MalHashMap,
+  MalString,
+  MalKeyword,
+};
