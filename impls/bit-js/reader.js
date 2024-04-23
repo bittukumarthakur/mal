@@ -1,4 +1,4 @@
-const { MalType, MalNum, MalList, MalSymbol } = require('./types');
+const { MalType, MalNum, MalList, MalSymbol, MalVector } = require('./types');
 
 class Reader {
   #tokens;
@@ -25,46 +25,59 @@ const tokenize = (expString) =>
     .slice(0, -1)
     .map((value) => value.trim());
 
-const readList = (reader) => {
-  const list = [];
+const readSeq = (reader, closingBracket) => {
+  const ast = [];
   reader.next();
 
-  while (reader.peek() !== ')') {
-    list.push(readForm(reader));
+  while (reader.peek() !== closingBracket) {
+    ast.push(readForm(reader));
   }
 
   reader.next();
-  return list;
+  return ast;
+};
+
+const readVector = (reader) => {
+  return readSeq(reader, ']');
+};
+
+const readList = (reader) => {
+  return readSeq(reader, ')');
 };
 
 const readAtom = (reader) => {
   const value = reader.next();
   const isUndefined = !value;
-  if (isUndefined) {
-    throw new Error('unbalanced');
-  }
+  const isNumber = /\d/.test(value);
 
-  const regexNumber = new RegExp('/d');
-  if (/\d/.test(value)) {
-    return new MalNum(value);
-  }
+  switch (true) {
+    case isUndefined:
+      throw new Error('unbalanced');
 
-  return new MalSymbol(value);
+    case isNumber:
+      return new MalNum(value);
+
+    default:
+      return new MalSymbol(value);
+  }
 };
 
 const readForm = (reader) => {
-  const isLeftParam = reader.peek() === '(';
+  switch (true) {
+    case reader.peek() === '(':
+      return new MalList(readList(reader));
 
-  if (isLeftParam) {
-    return new MalList(readList(reader));
+    case reader.peek() === '[':
+      return new MalVector(readVector(reader));
+
+    default:
+      return readAtom(reader);
   }
-
-  return readAtom(reader);
 };
 
 const readStr = (expString) => {
   const tokens = tokenize(expString);
-    const reader = new Reader(tokens);
+  const reader = new Reader(tokens);
 
   return readForm(reader);
 };

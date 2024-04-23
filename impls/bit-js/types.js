@@ -25,10 +25,20 @@ class MalList extends MalType {
   }
 }
 
+class MalVector extends MalType {
+  constructor(value) {
+    super(value);
+  }
+
+  prStr() {
+    return '[' + this.value.map((x) => x.prStr()).join(' ') + ']';
+  }
+}
+
 class MalSymbol extends MalType {
   constructor(value) {
     super(value);
   }
 }
 
-module.exports = { MalType, MalNum, MalList, MalSymbol };
+module.exports = { MalType, MalNum, MalList, MalSymbol, MalVector };
