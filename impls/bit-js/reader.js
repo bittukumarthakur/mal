@@ -1,4 +1,4 @@
-const { MalType, MalNum, MalList, MalSymbol, MalVector } = require('./types');
+const { MalType, MalNum, MalList, MalSymbol, MalVector, MalHashMap } = require('./types');
 
 class Reader {
   #tokens;
@@ -45,6 +45,10 @@ const readList = (reader) => {
   return readSeq(reader, ')');
 };
 
+const readHashMap = (reader) => {
+  return readSeq(reader, '}');
+};
+
 const readAtom = (reader) => {
   const value = reader.next();
   const isUndefined = !value;
@@ -55,7 +59,7 @@ const readAtom = (reader) => {
       throw new Error('unbalanced');
 
     case isNumber:
-      return new MalNum(value);
+      return new MalNum(parseInt(value));
 
     default:
       return new MalSymbol(value);
@@ -69,6 +73,9 @@ const readForm = (reader) => {
 
     case reader.peek() === '[':
       return new MalVector(readVector(reader));
+
+    case reader.peek() === '{':
+      return new MalHashMap(readHashMap(reader));
 
     default:
       return readAtom(reader);
