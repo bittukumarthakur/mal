@@ -48,8 +48,8 @@ const EVAL = (ast, repelENV) => {
 
     case ast.value[0].value === 'def!': {
       const [_, ...params] = ast.value;
-      const key = params[0];
-      const value = EVAL(params[1], repelENV);
+      const [key, exp] = params;
+      const value = EVAL(exp, repelENV);
       repelENV.set(key.value, value);
 
       return value;
@@ -57,10 +57,9 @@ const EVAL = (ast, repelENV) => {
 
     case ast.value[0].value === 'let*': {
       const [_, ...params] = ast.value;
-      const binding = params[0].value;
-      const body = params[1];
+      const [binding, body] = params;
       const newEnv = new Env(repelENV);
-      const bindingKeyAndValuePair = chunk(binding, 2);
+      const bindingKeyAndValuePair = chunk(binding.value, 2);
 
       bindingKeyAndValuePair.forEach(([key, value]) =>
         newEnv.set(key.value, EVAL(value, newEnv))
