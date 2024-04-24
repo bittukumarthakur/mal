@@ -4,6 +4,7 @@ const { readStr } = require('./reader');
 const { prStr } = require('./printer');
 const { MalList, MalNum, MalVector, MalHashMap, MalSymbol } = require('./types');
 const { Env } = require('./env');
+const { chunk } = require('lodash');
 
 const rl = readline.createInterface({ input, output });
 const READ = (value) => readStr(value);
@@ -49,22 +50,32 @@ const EVAL = (ast, repelENV) => {
     return ast;
   }
 
-  if (ast instanceof MalList) {
-    if (ast.value[0].value === 'def!') {
-      const [_, ...params] = ast.value;
-      const key = params[0];
-      const value = EVAL(params[1], repelENV);
-      repelENV.set(key.value, value);
+  if (ast.value[0].value === 'def!') {
+    const [_, ...params] = ast.value;
+    const key = params[0];
+    const value = EVAL(params[1], repelENV);
+    repelENV.set(key.value, value);
 
-      return value;
-    }
-
-    const [fn, ...params] = evalAst(ast, repelENV).value;
-    const args = params.map((a) => a.value);
-    return new MalNum(fn.apply(null, args));
+    return value;
   }
 
-  return evalAst(ast, repelENV);
+  if (ast.value[0].value === 'let*') {
+    const [_, ...params] = ast.value;
+    const binding = params[0].value;
+    const body = params[1];
+    const newEnv = new Env(repelENV);
+    const bindingKeyAndValuePair = chunk(binding, 2);
+
+    bindingKeyAndValuePair.forEach(([key, value]) =>
+      newEnv.set(key.value, EVAL(value, newEnv))
+    );
+
+    return EVAL(body, newEnv);
+  }
+
+  const [fn, ...params] = evalAst(ast, repelENV).value;
+  const args = params.map((a) => a.value);
+  return new MalNum(fn.apply(null, args));
 };
 
 const repl = () =>
