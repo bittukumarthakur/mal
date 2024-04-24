@@ -39,40 +39,42 @@ const evalAst = (ast, repelENV) => {
 };
 
 const EVAL = (ast, repelENV) => {
-  if (!(ast instanceof MalList)) {
-    return evalAst(ast, repelENV);
+  switch (true) {
+    case !(ast instanceof MalList):
+      return evalAst(ast, repelENV);
+
+    case ast.value.length === 0:
+      return ast;
+
+    case ast.value[0].value === 'def!': {
+      const [_, ...params] = ast.value;
+      const key = params[0];
+      const value = EVAL(params[1], repelENV);
+      repelENV.set(key.value, value);
+
+      return value;
+    }
+
+    case ast.value[0].value === 'let*': {
+      const [_, ...params] = ast.value;
+      const binding = params[0].value;
+      const body = params[1];
+      const newEnv = new Env(repelENV);
+      const bindingKeyAndValuePair = chunk(binding, 2);
+
+      bindingKeyAndValuePair.forEach(([key, value]) =>
+        newEnv.set(key.value, EVAL(value, newEnv))
+      );
+
+      return EVAL(body, newEnv);
+    }
+
+    default: {
+      const [fn, ...params] = evalAst(ast, repelENV).value;
+      const args = params.map((a) => a.value);
+      return new MalNum(fn.apply(null, args));
+    }
   }
-
-  if (ast.value.length === 0) {
-    return ast;
-  }
-
-  if (ast.value[0].value === 'def!') {
-    const [_, ...params] = ast.value;
-    const key = params[0];
-    const value = EVAL(params[1], repelENV);
-    repelENV.set(key.value, value);
-
-    return value;
-  }
-
-  if (ast.value[0].value === 'let*') {
-    const [_, ...params] = ast.value;
-    const binding = params[0].value;
-    const body = params[1];
-    const newEnv = new Env(repelENV);
-    const bindingKeyAndValuePair = chunk(binding, 2);
-
-    bindingKeyAndValuePair.forEach(([key, value]) =>
-      newEnv.set(key.value, EVAL(value, newEnv))
-    );
-
-    return EVAL(body, newEnv);
-  }
-
-  const [fn, ...params] = evalAst(ast, repelENV).value;
-  const args = params.map((a) => a.value);
-  return new MalNum(fn.apply(null, args));
 };
 
 const repl = () =>
