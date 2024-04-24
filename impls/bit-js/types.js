@@ -63,6 +63,31 @@ class MalKeyword extends MalType {
   }
 }
 
+class MalBoolean extends MalType {
+  constructor(value) {
+    super(value);
+  }
+}
+
+class MalNil extends MalType {
+  constructor() {
+    super('nil');
+  }
+}
+
+class MalFn extends MalType {
+  constructor(binding, exprs, env) {
+    super('#<function>');
+    this.binding = binding;
+    this.exprs = exprs;
+    this.env = env;
+  }
+
+  prStr() {
+    return '#<function>';
+  }
+}
+
 module.exports = {
   MalType,
   MalNum,
@@ -72,4 +97,7 @@ module.exports = {
   MalHashMap,
   MalString,
   MalKeyword,
+  MalBoolean,
+  MalNil,
+  MalFn,
 };

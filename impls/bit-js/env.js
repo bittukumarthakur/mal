@@ -1,7 +1,16 @@
+const { zip } = require('lodash');
+
 class Env {
   constructor(outerEnv) {
     this.outerEnv = outerEnv;
     this.innerEnv = new Map();
+  }
+
+  static from(outerEnv, bindings, values) {
+    const env = new Env(outerEnv);
+    const bindingAndExprs = zip(bindings, values);
+    bindingAndExprs.forEach(([key, value]) => env.set(key.value, value));
+    return env;
   }
 
   set(key, malValue) {

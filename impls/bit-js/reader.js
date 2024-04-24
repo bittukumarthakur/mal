@@ -1,5 +1,4 @@
 const {
-  MalType,
   MalNum,
   MalList,
   MalSymbol,
@@ -7,6 +6,8 @@ const {
   MalHashMap,
   MalString,
   MalKeyword,
+  MalBoolean,
+  MalNil,
 } = require('./types');
 
 class Reader {
@@ -66,6 +67,7 @@ const readAtom = (reader) => {
   const numberRegex = /^\+?\-?\d+$/;
   const stringRegex = /^".*"$/;
   const keywordRegex = /^:/;
+  const isBoolean = /^(true|false)$/;
 
   switch (true) {
     case isUndefined:
@@ -79,6 +81,12 @@ const readAtom = (reader) => {
 
     case match(keywordRegex, value):
       return new MalKeyword(value);
+
+    case match(isBoolean, value):
+      return new MalBoolean(value === 'true');
+
+    case value === 'nil':
+      return new MalNil();
 
     default:
       return new MalSymbol(value);
