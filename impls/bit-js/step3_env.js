@@ -17,28 +17,25 @@ repelENV.set('*', (a, b) => a * b);
 repelENV.set('/', (a, b) => a / b);
 
 const evalAst = (ast, repelENV) => {
-  if (ast instanceof MalSymbol) {
-    const value = repelENV.get(ast.value);
-    if (!value) {
-      throw new Error(`${ast.value} => no value is found`);
+  switch (true) {
+    case ast instanceof MalSymbol: {
+      const value = repelENV.get(ast.value);
+      if (!value) throw new Error(`${ast.value} => no value is found`);
+      return value;
     }
 
-    return value;
-  }
+    case ast instanceof MalList:
+      return new MalList(ast.value.map((a) => EVAL(a, repelENV)));
 
-  if (ast instanceof MalList) {
-    return new MalList(ast.value.map((a) => EVAL(a, repelENV)));
-  }
+    case ast instanceof MalVector:
+      return new MalVector(ast.value.map((a) => EVAL(a, repelENV)));
 
-  if (ast instanceof MalVector) {
-    return new MalVector(ast.value.map((a) => EVAL(a, repelENV)));
-  }
+    case ast instanceof MalHashMap:
+      return new MalHashMap(ast.value.map((a) => EVAL(a, repelENV)));
 
-  if (ast instanceof MalHashMap) {
-    return new MalHashMap(ast.value.map((a) => EVAL(a, repelENV)));
+    default:
+      return ast;
   }
-
-  return ast;
 };
 
 const EVAL = (ast, repelENV) => {
