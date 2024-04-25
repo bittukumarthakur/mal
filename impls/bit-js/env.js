@@ -9,6 +9,7 @@ class Env {
   static from(outerEnv, bindings, values) {
     const env = new Env(outerEnv);
     const bindingAndExprs = zip(bindings, values);
+
     bindingAndExprs.forEach(([key, value]) => env.set(key.value, value));
     return env;
   }

@@ -33,7 +33,7 @@ const evalAst = (ast, repelENV) => {
   }
 };
 
-const evalList = (ast, repelENV) => {
+const handleList = (ast, repelENV) => {
   const [fn, ...params] = evalAst(ast, repelENV).value;
 
   if (fn instanceof MalFn) {
@@ -44,8 +44,56 @@ const evalList = (ast, repelENV) => {
   return fn.apply(null, params);
 };
 
+const handleLet = (ast, repelENV) => {
+  const [_, ...params] = ast.value;
+  const [binding, body] = params;
+  const newEnv = new Env(repelENV);
+  const bindingKeyAndValuePair = chunk(binding.value, 2);
+
+  bindingKeyAndValuePair.forEach(([key, value]) =>
+    newEnv.set(key.value, EVAL(value, newEnv))
+  );
+
+  return EVAL(body, newEnv);
+};
+
+const handleDef = (ast, repelENV) => {
+  const [_, ...params] = ast.value;
+  const [key, exp] = params;
+  const value = EVAL(exp, repelENV);
+  repelENV.set(key.value, value);
+
+  return value;
+};
+
+const handleDo = (ast, repelENV) => {
+  const [_, ...params] = ast.value;
+  let value;
+  for (const parm of params) value = EVAL(parm, repelENV);
+  return value;
+};
+
+const handleIf = (ast, repelENV) => {
+  const [_, cond, firstExp, secondExp] = ast.value;
+  const evaluatedCond = EVAL(cond, repelENV).value;
+
+  if (evaluatedCond === false || evaluatedCond === 'nil') {
+    if (secondExp) return EVAL(secondExp, repelENV);
+
+    return new MalNil();
+  }
+
+  return EVAL(firstExp, repelENV);
+};
+
+const handleFn = (ast, repelENV) => {
+  const [_, ...params] = ast.value;
+  const [binding, exprs] = params;
+
+  return new MalFn(binding, exprs, repelENV);
+};
+
 const EVAL = (ast, repelENV) => {
-  // console.log('---->', ast);
   switch (true) {
     case !(ast instanceof MalList):
       return evalAst(ast, repelENV);
@@ -53,57 +101,23 @@ const EVAL = (ast, repelENV) => {
     case ast.value.length === 0:
       return ast;
 
-    case ast.value[0].value === 'def!': {
-      const [_, ...params] = ast.value;
-      const [key, exp] = params;
-      const value = EVAL(exp, repelENV);
-      repelENV.set(key.value, value);
+    case ast.value[0].value === 'def!':
+      return handleDef(ast, repelENV);
 
-      return value;
-    }
+    case ast.value[0].value === 'let*':
+      return handleLet(ast, repelENV);
 
-    case ast.value[0].value === 'let*': {
-      const [_, ...params] = ast.value;
-      const [binding, body] = params;
-      const newEnv = new Env(repelENV);
-      const bindingKeyAndValuePair = chunk(binding.value, 2);
+    case ast.value[0].value === 'do':
+      return handleDo(ast, repelENV);
 
-      bindingKeyAndValuePair.forEach(([key, value]) =>
-        newEnv.set(key.value, EVAL(value, newEnv))
-      );
+    case ast.value[0].value === 'if':
+      return handleIf(ast, repelENV);
 
-      return EVAL(body, newEnv);
-    }
-
-    case ast.value[0].value === 'do': {
-      const [_, ...params] = ast.value;
-      let value;
-      for (const parm of params) value = EVAL(parm, repelENV);
-      return value;
-    }
-
-    case ast.value[0].value === 'if': {
-      const [_, cond, firstExp, secondExp] = ast.value;
-      const evaluatedCond = EVAL(cond, repelENV).value;
-
-      if (evaluatedCond === false || evaluatedCond === 'nil') {
-        if (secondExp) return EVAL(secondExp, repelENV);
-
-        return new MalNil();
-      }
-
-      return EVAL(firstExp, repelENV);
-    }
-
-    case ast.value[0].value === 'fn*': {
-      const [_, ...params] = ast.value;
-      const [binding, exprs] = params;
-
-      return new MalFn(binding, exprs, repelENV);
-    }
+    case ast.value[0].value === 'fn*':
+      return handleFn(ast, repelENV);
 
     default:
-      return evalList(ast, repelENV);
+      return handleList(ast, repelENV);
   }
 };
 
@@ -112,7 +126,7 @@ const repl = (repelENV) =>
     try {
       PRINT(EVAL(READ(expString), repelENV));
     } catch (error) {
-      console.log(error);
+      console.log(error.message);
     }
 
     repl(repelENV);
@@ -120,7 +134,7 @@ const repl = (repelENV) =>
 
 const main = () => {
   const repelENV = new Env();
-  coreFn.forEach(([symbol, fn]) => repelENV.set(symbol, fn));
+  Object.entries(coreFn).forEach(([symbol, fn]) => repelENV.set(symbol, fn));
   repl(repelENV);
 };
 
