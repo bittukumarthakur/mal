@@ -44,9 +44,15 @@ const handleList = (ast, repelENV) => {
   return fn.apply(null, params);
 };
 
+const handleDo = (params, repelENV) => {
+  let value;
+  for (const parm of params) value = EVAL(parm, repelENV);
+  return value;
+};
+
 const handleLet = (ast, repelENV) => {
   const [_, ...params] = ast.value;
-  const [binding, body] = params;
+  const [binding, ...body] = params;
   const newEnv = new Env(repelENV);
   const bindingKeyAndValuePair = chunk(binding.value, 2);
 
@@ -54,6 +60,7 @@ const handleLet = (ast, repelENV) => {
     newEnv.set(key.value, EVAL(value, newEnv))
   );
 
+  return handleDo(body, newEnv);
   return EVAL(body, newEnv);
 };
 
@@ -63,13 +70,6 @@ const handleDef = (ast, repelENV) => {
   const value = EVAL(exp, repelENV);
   repelENV.set(key.value, value);
 
-  return value;
-};
-
-const handleDo = (ast, repelENV) => {
-  const [_, ...params] = ast.value;
-  let value;
-  for (const parm of params) value = EVAL(parm, repelENV);
   return value;
 };
 
@@ -107,8 +107,10 @@ const EVAL = (ast, repelENV) => {
     case ast.value[0].value === 'let*':
       return handleLet(ast, repelENV);
 
-    case ast.value[0].value === 'do':
-      return handleDo(ast, repelENV);
+    case ast.value[0].value === 'do': {
+      const [_, ...params] = ast.value;
+      return handleDo(params, repelENV);
+    }
 
     case ast.value[0].value === 'if':
       return handleIf(ast, repelENV);
