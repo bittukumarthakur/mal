@@ -33,34 +33,23 @@ const evalAst = (ast, repelENV) => {
   }
 };
 
-const handleList = (ast, repelENV) => {
-  const [fn, ...params] = evalAst(ast, repelENV).value;
+const handleDo = (ast, repelENV) => {
+  const argsWithoutLast = ast.value.slice(1, -1);
+  const [lastArgs] = ast.value.slice(-1);
+  argsWithoutLast.forEach((expr) => EVAL(expr, repelENV));
 
-  if (fn instanceof MalFn) {
-    const env = Env.from(fn.env, fn.binding.value, params);
-    return EVAL(fn.exprs, env);
-  }
-
-  return fn.apply(null, params);
-};
-
-const handleDo = (params, repelENV) => {
-  let value;
-  for (const parm of params) value = EVAL(parm, repelENV);
-  return value;
+  return lastArgs;
 };
 
 const handleLet = (ast, repelENV) => {
-  const [_, ...params] = ast.value;
-  const [binding, ...body] = params;
+  const [_, bindings, body] = ast.value;
   const newEnv = new Env(repelENV);
-  const bindingKeyAndValuePair = chunk(binding.value, 2);
-
+  const bindingKeyAndValuePair = chunk(bindings.value, 2);
   bindingKeyAndValuePair.forEach(([key, value]) =>
     newEnv.set(key.value, EVAL(value, newEnv))
   );
 
-  return handleDo(body, newEnv);
+  return { newAst: body, newEnv };
 };
 
 const handleDef = (ast, repelENV) => {
@@ -76,49 +65,54 @@ const handleIf = (ast, repelENV) => {
   const [_, cond, firstExp, secondExp] = ast.value;
   const evaluatedCond = EVAL(cond, repelENV).value;
 
-  if (evaluatedCond === false || evaluatedCond === 'nil') {
-    if (secondExp) return EVAL(secondExp, repelENV);
+  if (evaluatedCond === false || evaluatedCond === 'nil')
+    return secondExp ? secondExp : new MalNil();
 
-    return new MalNil();
-  }
-
-  return EVAL(firstExp, repelENV);
-};
-
-const handleFn = (ast, repelENV) => {
-  const [_, ...params] = ast.value;
-  const [binding, exprs] = params;
-
-  return new MalFn(binding, exprs, repelENV);
+  return firstExp;
 };
 
 const EVAL = (ast, repelENV) => {
-  switch (true) {
-    case !(ast instanceof MalList):
-      return evalAst(ast, repelENV);
+  while (true) {
+    if (!(ast instanceof MalList)) return evalAst(ast, repelENV);
+    if (ast.value.length === 0) return ast;
 
-    case ast.value.length === 0:
-      return ast;
+    switch (ast.value[0].value) {
+      case 'def!':
+        return handleDef(ast, repelENV);
 
-    case ast.value[0].value === 'def!':
-      return handleDef(ast, repelENV);
+      case 'let*': {
+        const { newAst, newEnv } = handleLet(ast, repelENV);
+        repelENV = newEnv;
+        ast = newAst;
+        break;
+      }
 
-    case ast.value[0].value === 'let*':
-      return handleLet(ast, repelENV);
+      case 'do': {
+        ast = handleDo(ast, repelENV);
+        break;
+      }
 
-    case ast.value[0].value === 'do': {
-      const [_, ...params] = ast.value;
-      return handleDo(params, repelENV);
+      case 'if': {
+        ast = handleIf(ast, repelENV);
+        break;
+      }
+
+      case 'fn*': {
+        const [_, bindings, body] = ast.value;
+        return new MalFn(bindings, body, repelENV);
+      }
+
+      default: {
+        const [fn, ...params] = evalAst(ast, repelENV).value;
+
+        if (fn instanceof MalFn) {
+          repelENV = Env.from(fn.env, fn.binding.value, params);
+          ast = fn.exprs;
+        } else {
+          return fn.apply(null, params);
+        }
+      }
     }
-
-    case ast.value[0].value === 'if':
-      return handleIf(ast, repelENV);
-
-    case ast.value[0].value === 'fn*':
-      return handleFn(ast, repelENV);
-
-    default:
-      return handleList(ast, repelENV);
   }
 };
 
